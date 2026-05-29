@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinTeens | 青少年財金素養學院</title>
+    <!-- 引入 Tailwind CSS 與 FontAwesome 圖標 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 隱藏滾動條但保持功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -16,6 +17,7 @@
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
 
     <div id="app" class="relative min-h-screen pb-12">
+        <!-- 導覽列 -->
         <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
             <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
@@ -26,14 +28,17 @@
             </div>
         </nav>
 
+        <!-- 主內容區 -->
         <main class="max-w-6xl mx-auto px-4 mt-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             
+            <!-- 左側欄：篩選器 + Chatbot 移到這裡 -->
             <aside class="md:col-span-1 space-y-6">
+                <!-- 篩選器 -->
                 <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">
                     <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">主題分類</h3>
                     <div class="space-y-2">
                         <button v-for="cat in categories" :key="cat.id" 
-                                @click="currentCategory = cat.id"
+                                @click="handleCategoryChange(cat.id)"
                                 :class="currentCategory === cat.id ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800 border border-transparent'"
                                 class="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all">
                             <i :class="cat.icon" class="mr-2"></i> {{ cat.name }}
@@ -43,122 +48,175 @@
                     <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-3">難易度</h3>
                     <div class="flex gap-2">
                         <button v-for="level in ['all', '初階', '進階']" :key="level"
-                                @click="currentLevel = level"
+                                @click="handleLevelChange(level)"
                                 :class="currentLevel === level ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:bg-slate-800 border border-transparent'"
                                 class="flex-1 text-center py-2 rounded-xl text-xs font-medium transition-all border">
                             {{ level === 'all' ? '全部' : level }}
                         </button>
                     </div>
                 </div>
-            </aside>
 
-            <section class="md:col-span-3 space-y-6">
-                <h2 class="text-xl font-bold flex items-center">
-                    <span class="w-1 h-6 bg-emerald-400 rounded mr-2"></span>
-                    精選課程與實戰測驗
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div v-for="course in filteredCourses" :key="course.id" 
-                         class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 hover:border-slate-600 transition-all flex flex-col justify-between">
+                <!-- Chatbot 內嵌於左側欄最下方 -->
+                <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden flex flex-col h-[400px]">
+                    <div class="p-4 border-b border-slate-700 bg-slate-800 flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                         <div>
-                            <div class="flex justify-between items-start mb-3">
-                                <span :class="course.level === '初階' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'" class="text-xs px-2.5 py-1 rounded-full font-medium">
-                                    {{ course.level }}
-                                </span>
-                                <span class="text-xs text-slate-500"><i class="fa-regular fa-clock mr-1"></i>{{ course.time }}</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-slate-100 mb-2">{{ course.title }}</h3>
-                            <p class="text-slate-400 text-sm leading-relaxed mb-4">{{ course.desc }}</p>
+                            <h4 class="text-sm font-bold">FinBot 財金智能諮詢</h4>
+                            <p class="text-[10px] text-slate-400">點擊下方常見問題快速對話</p>
                         </div>
-                        <button @click="startQuiz(course)" class="w-full bg-slate-700 hover:bg-emerald-600 text-white font-medium py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-graduation-cap"></i> 開始觀看與測驗
+                    </div>
+                    <!-- 訊息紀錄區 -->
+                    <div ref="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm no-scrollbar">
+                        <div v-for="(msg, idx) in chatHistory" :key="idx" 
+                             :class="msg.role === 'user' ? 'justify-end' : 'justify-start'" class="flex">
+                            <div :class="msg.role === 'user' ? 'bg-emerald-500 text-slate-900 font-medium' : 'bg-slate-700 text-slate-200'" class="max-w-[90%] rounded-xl px-3 py-2 text-xs leading-relaxed">
+                                {{ msg.text }}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 常見問題快捷鍵 -->
+                    <div class="p-2 border-t border-slate-700 bg-slate-900/50 flex flex-col gap-1.5">
+                        <button v-for="(qa, idx) in presetQA" :key="idx" 
+                                @click="askBot(qa)"
+                                class="text-left text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 rounded-xl hover:border-emerald-500/50 hover:text-emerald-400 transition-all truncate">
+                            <i class="fa-regular fa-circle-question mr-1 text-cyan-400"></i> {{ qa.q }}
                         </button>
                     </div>
                 </div>
+            </aside>
 
-                <div v-if="activeQuiz" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div class="bg-slate-800 border border-slate-700 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl">
-                        <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+            <!-- 右側：課程清單 / 研習與測驗大區塊 -->
+            <section class="md:col-span-3 space-y-6">
+                
+                <!-- 返回主列表按鈕 (當在看課程時顯示) -->
+                <div v-if="activeQuiz" class="flex items-center justify-between">
+                    <button @click="closeQuiz" class="text-sm text-slate-400 hover:text-emerald-400 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> 返回課程列表
+                    </button>
+                    <span class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-400">
+                        正在學習：{{ activeQuiz.title }}
+                    </span>
+                </div>
+
+                <!-- 狀態一：主課程清單 -->
+                <div v-if="!activeQuiz" class="space-y-6">
+                    <h2 class="text-xl font-bold flex items-center">
+                        <span class="w-1 h-6 bg-emerald-400 rounded mr-2"></span>
+                        精選財金增能課程
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-for="course in filteredCourses" :key="course.id" 
+                             class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 hover:border-slate-600 transition-all flex flex-col justify-between">
                             <div>
-                                <span class="text-xs text-emerald-400 font-bold tracking-wider uppercase">隨堂評量</span>
-                                <h3 class="text-lg font-bold">{{ activeQuiz.title }}</h3>
-                            </div>
-                            <button @click="closeQuiz" class="text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto no-scrollbar">
-                            <div v-for="(q, qIdx) in activeQuiz.questions" :key="qIdx" class="space-y-3">
-                                <div class="flex items-start gap-2">
-                                    <span class="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded mt-1 font-mono">Q{{ qIdx + 1 }}</span>
-                                    <p class="font-medium text-slate-200">{{ q.text }} <span class="text-xs text-cyan-400">({{ q.type === 'single' ? '單選題' : '複選題' }})</span></p>
+                                <div class="flex justify-between items-start mb-3">
+                                    <span :class="course.level === '初階' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'" class="text-xs px-2.5 py-1 rounded-full font-medium border">
+                                        {{ course.level }}
+                                    </span>
+                                    <span class="text-xs text-slate-500"><i class="fa-regular fa-clock mr-1"></i>{{ course.time }}</span>
                                 </div>
-                                <div class="grid grid-cols-1 gap-2 pl-8">
+                                <h3 class="text-lg font-bold text-slate-100 mb-2">{{ course.title }}</h3>
+                                <p class="text-slate-400 text-sm leading-relaxed mb-4">{{ course.desc }}</p>
+                            </div>
+                            <button @click="startQuiz(course)" class="w-full bg-slate-800 border border-slate-700 hover:bg-emerald-500 hover:text-slate-900 font-bold py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-book-open"></i> 開始觀看與測驗
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 狀態二：專注課程學習與研習測驗區 -->
+                <div v-else class="space-y-6">
+                    <!-- 1. 課程知識內容 -->
+                    <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 md:p-8 space-y-6">
+                        <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                            <span class="tracking-wider uppercase text-sm">第一部分：核心知識研習</span>
+                        </div>
+                        <h2 class="text-2xl font-bold border-b border-slate-700 pb-4">{{ activeQuiz.title }}</h2>
+                        
+                        <!-- 渲染知識點 -->
+                        <div class="space-y-6 text-slate-300 leading-relaxed text-sm md:text-base">
+                            <div v-for="(content, cIdx) in activeQuiz.courseContents" :key="cIdx" class="bg-slate-900/50 rounded-xl p-5 border border-slate-800">
+                                <h4 class="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                                    {{ content.heading }}
+                                </h4>
+                                <p class="text-slate-300 mb-3">{{ content.text }}</p>
+                                <div class="bg-slate-800/80 rounded-lg p-3 text-xs text-cyan-400 border border-cyan-950 flex gap-2">
+                                    <span class="font-bold shrink-0">💡 舉例說明：</span>
+                                    <span>{{ content.example }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 隨堂評量題目 -->
+                    <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 md:p-8 space-y-6">
+                        <div class="flex items-center gap-2 text-cyan-400 font-bold">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span class="tracking-wider uppercase text-sm">第二部分：知識實戰測驗</span>
+                        </div>
+                        
+                        <div class="space-y-8">
+                            <div v-for="(q, qIdx) in activeQuiz.questions" :key="qIdx" class="space-y-4">
+                                <div class="flex items-start gap-3">
+                                    <span class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded font-mono font-bold mt-0.5">Q{{ qIdx + 1 }}</span>
+                                    <div>
+                                        <p class="font-bold text-slate-200 text-base">{{ q.text }}</p>
+                                        <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                                            {{ q.type === 'single' ? '單選題' : '複選題（需全部選對）' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <!-- 選項清單 -->
+                                <div class="grid grid-cols-1 gap-2.5 pl-11">
                                     <label v-for="(option, oIdx) in q.options" :key="oIdx" 
-                                           :class="isOptionSelected(qIdx, oIdx) ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-700 hover:bg-slate-700/50'"
-                                           class="border rounded-xl p-3 flex items-center cursor-pointer transition-all text-sm text-slate-300">
+                                           :class="isOptionSelected(qIdx, oIdx) ? 'border-emerald-500 bg-emerald-500/5 text-emerald-400' : 'border-slate-700/80 text-slate-300 hover:bg-slate-700/40'"
+                                           class="border rounded-xl p-3.5 flex items-center cursor-pointer transition-all text-sm">
                                         <input :type="q.type === 'single' ? 'radio' : 'checkbox'" 
                                                :name="'q-'+qIdx" 
                                                :value="oIdx"
                                                v-model="userAnswers[qIdx]"
-                                               class="mr-3 accent-emerald-500">
+                                               class="mr-3 w-4 h-4 accent-emerald-500 shrink-0">
                                         {{ option }}
                                     </label>
                                 </div>
                             </div>
                         </div>
-                        <div class="p-6 border-t border-slate-700 bg-slate-800/50 flex justify-between items-center">
+
+                        <!-- 評分與送出控制台 -->
+                        <div class="pt-6 border-t border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div>
-                                <p v-if="quizScore !== null" class="text-emerald-400 font-bold text-lg">得分：{{ quizScore }} / 100</p>
+                                <div v-if="quizScore !== null" class="bg-slate-900/80 border border-slate-700 rounded-xl px-5 py-3 flex items-center gap-3">
+                                    <i class="fa-solid fa-award text-amber-400 text-2xl"></i>
+                                    <div>
+                                        <p class="text-xs text-slate-400 font-medium">測驗得分</p>
+                                        <p class="text-xl font-bold text-emerald-400">{{ quizScore }} / 100 分</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex gap-3">
-                                <button @click="closeQuiz" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-white">取消</button>
-                                <button @click="submitQuiz" class="px-5 py-2 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold transition-all">提交答案</button>
+                            <div class="flex gap-3 w-full sm:w-auto">
+                                <button @click="closeQuiz" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-700 text-slate-400 hover:text-white transition-all">
+                                    結束研習
+                                </button>
+                                <button @click="submitQuiz" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 text-slate-900 hover:bg-emerald-400 shadow-lg shadow-emerald-500/10 transition-all">
+                                    提交答案
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
             </section>
         </main>
-
-        <div class="fixed bottom-6 right-6 z-50">
-            <button @click="isChatOpen = !isChatOpen" class="w-14 h-14 bg-gradient-to-tr from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-all text-slate-900 text-xl font-bold">
-                <i v-if="!isChatOpen" class="fa-solid fa-comments"></i>
-                <i v-else class="fa-solid fa-xmark"></i>
-            </button>
-
-            <div v-if="isChatOpen" class="absolute bottom-18 right-0 w-80 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-96">
-                <div class="p-4 bg-gradient-to-r from-slate-800 to-slate-800 border-b border-slate-700 flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                    <div>
-                        <h4 class="text-sm font-bold">FinBot 財金小幫手</h4>
-                        <p class="text-[10px] text-slate-400">點擊下方常見問題快速對話</p>
-                    </div>
-                </div>
-                <div class="flex-1 p-4 overflow-y-auto space-y-3 text-sm no-scrollbar">
-                    <div v-for="(msg, idx) in chatHistory" :key="idx" 
-                         :class="msg.role === 'user' ? 'justify-end' : 'justify-start'" class="flex">
-                        <div :class="msg.role === 'user' ? 'bg-emerald-500 text-slate-900 font-medium' : 'bg-slate-700 text-slate-200'" class="max-w-[80%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed">
-                            {{ msg.text }}
-                        </div>
-                    </div>
-                </div>
-                <div class="p-2 border-t border-slate-700 bg-slate-900/50 flex flex-wrap gap-1">
-                    <button v-for="(qa, idx) in presetQA" :key="idx" 
-                            @click="askBot(qa)"
-                            class="text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-full hover:border-emerald-500/50 hover:text-emerald-400 transition-all">
-                        {{ qa.q }}
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
 
+    <!-- Vue 邏輯處理 -->
     <script>
-        const { createApp, ref, computed } = Vue;
+        const { createApp, ref, computed, nextTick } = Vue;
 
         createApp({
             setup() {
-                // 分類資料
                 const categories = ref([
                     { id: 'all', name: '全部主題', icon: 'fa-solid fa-border-all' },
                     { id: 'stock', name: '股票市場', icon: 'fa-solid fa-arrow-trend-up' },
@@ -166,39 +224,69 @@
                     { id: 'crypto', name: '加密貨幣', icon: 'fa-brands fa-bitcoin' }
                 ]);
 
-                currentCategory = ref('all');
-                currentLevel = ref('all');
+                const currentCategory = ref('all');
+                const currentLevel = ref('all');
+                const chatBox = ref(null);
 
-                // 課程與測驗題庫數據
+                // 分類切換時，自動關閉正在進行的課程回到列表
+                const handleCategoryChange = (id) => {
+                    currentCategory.value = id;
+                    activeQuiz.value = null;
+                };
+                const handleLevelChange = (level) => {
+                    currentLevel.value = level;
+                    activeQuiz.value = null;
+                };
+
+                // 擴充後的課程知識點與更多精緻題庫 (單選、複選大增量)
                 const courses = ref([
                     {
                         id: 1, category: 'stock', level: '初階', time: '10 分鐘',
                         title: '第一次買股票就上手：什麼是零股？',
                         desc: '青少年資金少也不怕！學習如何用一杯飲料的錢，成為台積電或蘋果公司的微型股東。',
+                        courseContents: [
+                            { heading: '什麼是股票？', text: '股票就是公司的「小碎片」。當你買進一張或一股股票，你就成為該公司的股東，公司賺錢時你就有機會分紅。', example: '如果麥當勞發行了100張股票，你買了1張，你就是麥當勞 1% 的小老闆！' },
+                            { heading: '一張股票太貴？試試「零股」！', text: '在台灣，傳統買賣股票一次要買「一張」（等於 1,000 股）。如果一張台積電要80萬，學生根本買不起。但現在開放「零股交易」，你可以只買「1 股」（只要幾百元）！', example: '每個月少喝兩杯珍奶，省下200元，就能在盤中買進零股，慢慢累積資產。' },
+                            { heading: '股利與價差的秘密', text: '投資股票賺錢有兩種方式：一種是「價差」（低價買進、高價賣出）；另一種是「股利」（公司把賺到的錢分給股東）。', example: '你用100元買進某股票，一年後漲到120元賣出，這20元就是價差。如果期間公司又發放2元現金，那2元就是股利。' }
+                        ],
                         questions: [
-                            { type: 'single', text: '什麼是「零股交易」？', options: ['購買不滿一張（1000股）的股票', '買路邊攤過期股票', '不用花錢的股票'], answer: 0 },
-                            { type: 'multiple', text: '（複選）買股票賺錢的管道有哪些？', options: ['公司發放的股利股息', '買低賣高的價差變現', '跟銀行借錢不用還'], answer: [0, 1] }
+                            { type: 'single', text: '在台灣股市中，傳統標準的「一張」股票，總共包含多少「股」？', options: ['1 股', '100 股', '1,000 股', '10,000 股'], answer: 2 },
+                            { type: 'single', text: '小明今年16歲，用自己存的零用錢買了 5 股蘋果公司(Apple)的零股，下列敘述何者正確？', options: ['小明錢太少，不能算公司的股東', '小明已經成為蘋果公司的小股東之一', '小明可以直接開除蘋果公司的 CEO'], answer: 1 },
+                            { type: 'multiple', text: '（複選）關於股票投資的獲利與風險，下列哪些概念是正確的？', options: ['可以透過長期持有賺取公司配發的股利股息', '股票價格會隨市場波動，有可能跌到比買進時還低', '零股交易可以讓資金有限的學生分散投資金額', '只要買大公司的股票就保證絕對不會賠錢'], answer: [0, 1, 2] }
                         ]
                     },
                     {
                         id: 2, category: 'fund', level: '初階', time: '12 分鐘',
                         title: '懶人理財術：認識 ETF 與定期定額',
                         desc: '不想天天盯盤？用 ETF 幫你一籃子買進全台灣最強的公司，分散風險最適合學生。',
+                        courseContents: [
+                            { heading: '什麼是 ETF（指數股票型基金）？', text: 'ETF 就像是財金界的「綜合零食包」。普通的股票是單買一包洋芋片，如果洋芋片發霉（公司倒閉）你就血本無歸；而 ETF 是幫你把巧克力、軟糖、餅乾各裝一點，組合成一包賣給你。', example: '台灣很有名的 ETF 叫「元大台灣50(0050)」，你買它一口氣就等於買進台積電、聯發科、鴻海等台灣市值最大的50家公司！' },
+                            { heading: '威力巨大的「定期定額」', text: '定期定額就是「每隔固定時間（如每個月），投入固定金額（如1,000元）去買投資標的」。市場價格高時買到的股數少，市場便宜時買到的股數多，長期下來會拉平買進成本。', example: '不必去猜什麼時候是最低點，每個月發零用錢時固定投入，時間久了就會產生複利效應。' }
+                        ],
                         questions: [
-                            { type: 'single', text: '定期定額最大的好處是什麼？', options: ['一定發大財', '平均買進成本，分散市場波動風險', '完全沒有任何風險'], answer: 1 }
+                            { type: 'single', text: '買進一張「台灣50 (0050)」的 ETF，相當於買進了什麼？', options: ['一家專門賣零食的公司', '台灣市值最大的 50 家龍頭企業組合', '50 坪的台北精華區土地'], answer: 1 },
+                            { type: 'single', text: '定期定額投資最核心的策略和優勢是什麼？', options: ['保證能買在市場最低點', '透過固定時間金額投入，平均買進成本並分散波動風險', '當月賺錢就多投，賠錢就不投'], answer: 1 },
+                            { type: 'multiple', text: '（複選）相比於單純投資「單一公司股票」，投資「ETF」通常具有哪些特點？', options: ['具備分散風險的效果，避免單一公司倒閉的危機', '經理公司會收取管理管理費等內扣費用', '通常不需要花大量時間每天研究個別公司的財務報表', '絕對可以在一天之內賺到好幾倍的暴利'], answer: [0, 1, 2] }
                         ]
                     },
                     {
                         id: 3, category: 'crypto', level: '進階', time: '15 分鐘',
                         title: '區塊鏈與比特幣：是未來貨幣還是泡沫？',
                         desc: '探索神秘的數位黃金。理解去中心化的概念，以及青少年該如何看待高風險的加密資產。',
+                        courseContents: [
+                            { heading: '什麼是「去中心化」？', text: '我們平常轉帳、刷卡，都需要經過「銀行」這個大中心。如果銀行系統壞掉或倒閉，你的錢就不見了。而區塊鏈技術是讓網路上所有人一起幫忙記帳，不需要透過中間的銀行。', example: '班上收班費不用選記帳股長，而是每個人發一本帳本，誰繳錢全班一起在帳本上記錄，這就是去中心化記帳。' },
+                            { heading: '神祕的數位黃金：比特幣', text: '比特幣是世界上第一個加密貨幣。它最特別的地方是「限量發行」，全世界總共只會有 2,100 萬枚，因為稀缺，所以很多人把它當作數位版的黃金。', example: '正因為它不屬於任何國家，且數量有限，常因為全球經濟變動而出現暴漲或暴跌。' },
+                            { heading: '青少年應有的風險觀念', text: '加密貨幣沒有國家的中央銀行做擔保，一天的暴漲暴跌幅度可能是股票的好幾倍，更充滿了各種網路詐騙、假交易所與假投資群組。', example: '絕對不能把吃飯錢或學費拿去買加密貨幣，更不能相信網路上高回報的「代操群組」。' }
+                        ],
                         questions: [
-                            { type: 'single', text: '比特幣的總發行量上限是多少？', options: ['無限量', '2100 萬枚', '1 億枚'], answer: 1 }
+                            { type: 'single', text: '比特幣與區塊鏈技術的核心精神「去中心化」指的是什麼？', options: ['把財富全部集中到國家的中央銀行', '移除第三方中介機構（如銀行），改由網路上分散的節點共同記帳維護', '所有的交易都必須在市中心實體進行'], answer: 1 },
+                            { type: 'single', text: '關於比特幣(Bitcoin)的發行數量，下列敘述何者正確？', options: ['由美國聯準會決定每年印多少', '像遊戲代幣一樣可以無限無限增發', '總發行量有嚴格限制，上限為 2,100 萬枚'], answer: 2 },
+                            { type: 'multiple', text: '（複選）當青少年想接觸或了解加密貨幣時，應具備哪些正確的防詐與風險觀念？', options: ['加密貨幣波動極大，絕對不投入影響生活的核心資金', '網路上宣稱「保證獲利、穩賺不賠」的加密貨幣投資群組 99% 是詐騙', '將虛擬貨幣存放在知名且合法的冷錢包或大型交易所，並保管好個人私鑰', '只要跟著網紅介紹的最新幣種買，就一定能提早退休'], answer: [0, 1, 2] }
                         ]
                     }
                 ]);
 
-                // 篩選後的課程
+                // 篩選過後的課程
                 const filteredCourses = computed(() => {
                     return courses.value.filter(c => {
                         const matchCat = currentCategory.value === 'all' || c.category === currentCategory.value;
@@ -207,7 +295,7 @@
                     });
                 });
 
-                // 測驗 Modal 控制
+                // 測驗與研習 Modal 數據控制
                 const activeQuiz = ref(null);
                 const userAnswers = ref({});
                 const quizScore = ref(null);
@@ -215,7 +303,7 @@
                 const startQuiz = (course) => {
                     activeQuiz.value = course;
                     quizScore.value = null;
-                    // 初始化答案結構
+                    // 初始化答案結構：單選給 null，複選給空陣列 []
                     userAnswers.value = course.questions.map(q => q.type === 'single' ? null : []);
                 };
 
@@ -234,7 +322,6 @@
                         if (q.type === 'single') {
                             if (userAns === q.answer) correctCount++;
                         } else {
-                            // 複選題比對陣列
                             if (Array.isArray(userAns) && 
                                 userAns.length === q.answer.length && 
                                 userAns.every(v => q.answer.includes(v))) {
@@ -249,30 +336,37 @@
                 const closeQuiz = () => { activeQuiz.value = null; };
 
                 // AI Chatbot 內嵌模擬數據
-                const isChatOpen = ref(false);
                 const chatHistory = ref([
-                    { role: 'bot', text: '嗨！我是 FinBot。你想了解什麼財金小知識呢？點擊下方問題我能立刻幫你解答喔！' }
+                    { role: 'bot', text: '同學你好！我是 FinBot 🤖。對台股、ETF 或者是理財有疑問嗎？點擊下方快問快答，我能立刻為你解答！' }
                 ]);
 
                 const presetQA = ref([
-                    { q: '幾歲可以開始理財？', a: '理財不分年齡！只要開始學會管理自己的零用錢、分清「想要」與「需要」，你現在就已經在理財了。法律上現在滿 18 歲就能獨立開證券戶囉！' },
-                    { q: '學生股票怎麼買？', a: '建議從「零股」和「定期定額 ETF」開始。不需萬把塊，每個月 1,000 元就能投資，分散風險也比較不會影響學業。' },
-                    { q: '加密貨幣能投資嗎？', a: '加密貨幣波動極大，屬於高風險資產。對青少年來說，建議先把它當作「區塊鏈技術」來學習，千萬不要把生活費梭哈投入喔！' }
+                    { q: '幾歲可以開始買股票開戶？', a: '法律規定現在滿 18 歲就是成年人，可以自己去銀行和證券商開戶買股票囉！如果未滿 18 歲，就需要父母陪同到櫃檯辦理開戶。' },
+                    { q: '定期定額 1000 元真的有用嗎？', a: '超有用！這叫做「複利效應」。每個月穩穩投入 1000 元買優質 ETF，假設年化報酬率 6%，等你十年後大學畢業或研究所出來，這筆錢會滾成巨大的第一桶金！' },
+                    { q: '股票套牢或大跌怎麼辦？', a: '不要慌！如果你買的是一籃子公司的 ETF（如0050），大跌往往是定期定額「撿便宜、降低平均成本」的好時機。但如果是單一炒作股，就要小心評估是否要停損。' },
+                    { q: '聽說虛擬貨幣賺很快，能碰嗎？', a: '千萬小心！虛擬貨幣完全沒有金管會保障，一天跌 50% 都是常有的事。青少年除非是想研究區塊鏈技術，否則不建議把生活費投入，更絕對不能相信網路代操！' }
                 ]);
 
                 const askBot = (qa) => {
-                    // 使用者發言
                     chatHistory.value.push({ role: 'user', text: qa.q });
-                    // 模擬機器人秒回
+                    
+                    // 自動滾動到底部
+                    nextTick(() => {
+                        if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight;
+                    });
+
                     setTimeout(() => {
                         chatHistory.value.push({ role: 'bot', text: qa.a });
+                        nextTick(() => {
+                            if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight;
+                        });
                     }, 300);
                 };
 
                 return {
                     categories, currentCategory, currentLevel, filteredCourses,
                     activeQuiz, startQuiz, closeQuiz, userAnswers, isOptionSelected, submitQuiz, quizScore,
-                    isChatOpen, chatHistory, presetQA, askBot
+                    chatHistory, presetQA, askBot, chatBox, handleCategoryChange, handleLevelChange
                 };
             }
         }).mount('#app');
