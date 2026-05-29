@@ -31,7 +31,7 @@
         <!-- 主內容區 -->
         <main class="max-w-6xl mx-auto px-4 mt-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             
-            <!-- 左側欄：篩選器 + Chatbot 移到這裡 -->
+            <!-- 左側欄：篩選器 + 改良版輸入式 Chatbot -->
             <aside class="md:col-span-1 space-y-6">
                 <!-- 篩選器 -->
                 <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">
@@ -56,30 +56,45 @@
                     </div>
                 </div>
 
-                <!-- Chatbot 內嵌於左側欄最下方 -->
+                <!-- Chatbot 改良：支援輸入與快速點擊兩用 -->
                 <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden flex flex-col h-[400px]">
                     <div class="p-4 border-b border-slate-700 bg-slate-800 flex items-center gap-3">
                         <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                         <div>
                             <h4 class="text-sm font-bold">FinBot 財金智能諮詢</h4>
-                            <p class="text-[10px] text-slate-400">點擊下方常見問題快速對話</p>
+                            <p class="text-[10px] text-slate-400">可自由打字提問或點選關鍵字</p>
                         </div>
                     </div>
+                    
                     <!-- 訊息紀錄區 -->
-                    <div ref="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm no-scrollbar">
+                    <div ref="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm no-scrollbar bg-slate-900/20">
                         <div v-for="(msg, idx) in chatHistory" :key="idx" 
                              :class="msg.role === 'user' ? 'justify-end' : 'justify-start'" class="flex">
-                            <div :class="msg.role === 'user' ? 'bg-emerald-500 text-slate-900 font-medium' : 'bg-slate-700 text-slate-200'" class="max-w-[90%] rounded-xl px-3 py-2 text-xs leading-relaxed">
+                            <div :class="msg.role === 'user' ? 'bg-emerald-500 text-slate-900 font-semibold' : 'bg-slate-700 text-slate-200'" class="max-w-[90%] rounded-xl px-3 py-2 text-xs leading-relaxed">
                                 {{ msg.text }}
                             </div>
                         </div>
                     </div>
-                    <!-- 常見問題快捷鍵 -->
-                    <div class="p-2 border-t border-slate-700 bg-slate-900/50 flex flex-col gap-1.5">
+
+                    <!-- 提示快捷標籤 (精簡橫向滾動，不佔空間) -->
+                    <div class="px-3 py-1.5 border-t border-slate-800 bg-slate-900/40 flex gap-1.5 overflow-x-auto no-scrollbar">
                         <button v-for="(qa, idx) in presetQA" :key="idx" 
-                                @click="askBot(qa)"
-                                class="text-left text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 rounded-xl hover:border-emerald-500/50 hover:text-emerald-400 transition-all truncate">
-                            <i class="fa-regular fa-circle-question mr-1 text-cyan-400"></i> {{ qa.q }}
+                                @click="handleKeywordClick(qa.q)"
+                                class="shrink-0 text-[10px] bg-slate-800 border border-slate-700 hover:border-emerald-500/40 text-slate-400 hover:text-emerald-400 px-2.5 py-0.5 rounded-full transition-all">
+                            # {{ qa.tag }}
+                        </button>
+                    </div>
+
+                    <!-- 輸入對話框 -->
+                    <div class="p-2.5 bg-slate-800 border-t border-slate-700 flex gap-2 items-center">
+                        <input type="text" 
+                               v-model="userInput" 
+                               @keyup.enter="sendMessage"
+                               placeholder="輸入問題（如：開戶、ETF...）" 
+                               class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                        <button @click="sendMessage" 
+                                class="w-8 h-8 rounded-xl bg-emerald-500 text-slate-900 flex items-center justify-center hover:bg-emerald-400 active:scale-95 transition-all shrink-0">
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
                         </button>
                     </div>
                 </div>
@@ -88,7 +103,7 @@
             <!-- 右側：課程清單 / 研習與測驗大區塊 -->
             <section class="md:col-span-3 space-y-6">
                 
-                <!-- 返回主列表按鈕 (當在看課程時顯示) -->
+                <!-- 返回主列表按鈕 -->
                 <div v-if="activeQuiz" class="flex items-center justify-between">
                     <button @click="closeQuiz" class="text-sm text-slate-400 hover:text-emerald-400 transition-all flex items-center gap-2">
                         <i class="fa-solid fa-arrow-left"></i> 返回課程列表
@@ -227,8 +242,8 @@
                 const currentCategory = ref('all');
                 const currentLevel = ref('all');
                 const chatBox = ref(null);
+                const userInput = ref('');
 
-                // 分類切換時，自動關閉正在進行的課程回到列表
                 const handleCategoryChange = (id) => {
                     currentCategory.value = id;
                     activeQuiz.value = null;
@@ -238,7 +253,7 @@
                     activeQuiz.value = null;
                 };
 
-                // 擴充後的課程知識點與更多精緻題庫 (單選、複選大增量)
+                // 課程與題庫數據
                 const courses = ref([
                     {
                         id: 1, category: 'stock', level: '初階', time: '10 分鐘',
@@ -265,7 +280,7 @@
                         ],
                         questions: [
                             { type: 'single', text: '買進一張「台灣50 (0050)」的 ETF，相當於買進了什麼？', options: ['一家專門賣零食的公司', '台灣市值最大的 50 家龍頭企業組合', '50 坪的台北精華區土地'], answer: 1 },
-                            { type: 'single', text: '定期定額投資最核心的策略和優勢是什麼？', options: ['保證能買在市場最低點', '透過固定時間金額投入，平均買進成本並分散波動風險', '當月賺錢就多投，賠錢就不投'], answer: 1 },
+                            { type: 'single', text: '定期定額投資最核心的策略 and 優勢是什麼？', options: ['保證能買在市場最低點', '透過固定時間金額投入，平均買進成本並分散波動風險', '當月賺錢就多投，賠錢就不投'], answer: 1 },
                             { type: 'multiple', text: '（複選）相比於單純投資「單一公司股票」，投資「ETF」通常具有哪些特點？', options: ['具備分散風險的效果，避免單一公司倒閉的危機', '經理公司會收取管理管理費等內扣費用', '通常不需要花大量時間每天研究個別公司的財務報表', '絕對可以在一天之內賺到好幾倍的暴利'], answer: [0, 1, 2] }
                         ]
                     },
@@ -281,12 +296,11 @@
                         questions: [
                             { type: 'single', text: '比特幣與區塊鏈技術的核心精神「去中心化」指的是什麼？', options: ['把財富全部集中到國家的中央銀行', '移除第三方中介機構（如銀行），改由網路上分散的節點共同記帳維護', '所有的交易都必須在市中心實體進行'], answer: 1 },
                             { type: 'single', text: '關於比特幣(Bitcoin)的發行數量，下列敘述何者正確？', options: ['由美國聯準會決定每年印多少', '像遊戲代幣一樣可以無限無限增發', '總發行量有嚴格限制，上限為 2,100 萬枚'], answer: 2 },
-                            { type: 'multiple', text: '（複選）當青少年想接觸或了解加密貨幣時，應具備哪些正確的防詐與風險觀念？', options: ['加密貨幣波動極大，絕對不投入影響生活的核心資金', '網路上宣稱「保證獲利、穩賺不賠」的加密貨幣投資群組 99% 是詐騙', '將虛擬貨幣存放在知名且合法的冷錢包或大型交易所，並保管好個人私鑰', '只要跟著網紅介紹的最新幣種買，就一定能提早退休'], answer: [0, 1, 2] }
+                            { type: 'multiple', text: '（複選）當青少年想接觸或了解加密貨幣時，應具備哪些正確的防詐與風險觀念？', options: ['加密貨幣波動極大，絕對不投入影響生活的核心資金', '網路上宣稱「保證獲利、穩賺不賠」的加密貨幣投資群組 99% 是詐騙', '將虛擬貨幣存存放於知名且合法的冷錢包或大型交易所，並保管好個人私鑰', '只要跟著網紅介紹的最新幣種買，就一定能提早退休'], answer: [0, 1, 2] }
                         ]
                     }
                 ]);
 
-                // 篩選過後的課程
                 const filteredCourses = computed(() => {
                     return courses.value.filter(c => {
                         const matchCat = currentCategory.value === 'all' || c.category === currentCategory.value;
@@ -295,7 +309,6 @@
                     });
                 });
 
-                // 測驗與研習 Modal 數據控制
                 const activeQuiz = ref(null);
                 const userAnswers = ref({});
                 const quizScore = ref(null);
@@ -303,7 +316,6 @@
                 const startQuiz = (course) => {
                     activeQuiz.value = course;
                     quizScore.value = null;
-                    // 初始化答案結構：單選給 null，複選給空陣列 []
                     userAnswers.value = course.questions.map(q => q.type === 'single' ? null : []);
                 };
 
@@ -335,38 +347,69 @@
 
                 const closeQuiz = () => { activeQuiz.value = null; };
 
-                // AI Chatbot 內嵌模擬數據
+                // Chatbot 數據與輸入處理邏輯
                 const chatHistory = ref([
-                    { role: 'bot', text: '同學你好！我是 FinBot 🤖。對台股、ETF 或者是理財有疑問嗎？點擊下方快問快答，我能立刻為你解答！' }
+                    { role: 'bot', text: '同學你好！我是 FinBot 🤖。對台股、開戶、ETF 或者是虛擬貨幣有疑問嗎？歡迎在下方直接打字問我！' }
                 ]);
 
+                // 常見問答數據字典 (包含用於檢索的關鍵字和標籤名稱)
                 const presetQA = ref([
-                    { q: '幾歲可以開始買股票開戶？', a: '法律規定現在滿 18 歲就是成年人，可以自己去銀行和證券商開戶買股票囉！如果未滿 18 歲，就需要父母陪同到櫃檯辦理開戶。' },
-                    { q: '定期定額 1000 元真的有用嗎？', a: '超有用！這叫做「複利效應」。每個月穩穩投入 1000 元買優質 ETF，假設年化報酬率 6%，等你十年後大學畢業或研究所出來，這筆錢會滾成巨大的第一桶金！' },
-                    { q: '股票套牢或大跌怎麼辦？', a: '不要慌！如果你買的是一籃子公司的 ETF（如0050），大跌往往是定期定額「撿便宜、降低平均成本」的好時機。但如果是單一炒作股，就要小心評估是否要停損。' },
-                    { q: '聽說虛擬貨幣賺很快，能碰嗎？', a: '千萬小心！虛擬貨幣完全沒有金管會保障，一天跌 50% 都是常有的事。青少年除非是想研究區塊鏈技術，否則不建議把生活費投入，更絕對不能相信網路代操！' }
+                    { tag: '開戶年齡', keywords: ['幾歲', '年齡', '開戶', '滿18'], q: '幾歲可以開始買股票開戶？', a: '法律規定現在滿 18 歲就是成年人，可以自己去銀行和證券商開戶買股票囉！如果未滿 18 歲，就需要父母陪同到櫃檯辦理開戶。' },
+                    { tag: '定期定額', keywords: ['定期', '定額', '1000', '有用嗎', 'etf'], q: '定期定額 1000 元真的有用嗎？', a: '超有用！這叫做「複利效應」。每個月穩穩投入 1000 元買優質 ETF，假設年化報酬率 6%，時間久了就會滾成巨大的第一桶金！' },
+                    { tag: '股票大跌', keywords: ['大跌', '套牢', '賠錢', '股票跌'], q: '股票套牢或大跌怎麼辦？', a: '不要慌！如果你買的是一籃子公司的 ETF（如0050），大跌往往是定期定額「撿便宜、降低平均成本」的好時機。但如果是單一炒作股，就要小心評估停損。' },
+                    { tag: '虛擬貨幣', keywords: ['虛擬貨幣', '加密貨幣', '比特幣', '賺很快'], q: '聽說虛擬貨幣賺很快，能碰嗎？', a: '誠心建議先當技術學習！虛擬貨幣沒有金管會保障，一天跌 50% 是常有的事。青少年絕對不能把生活費投入，更不能輕信網路代操群組！' }
                 ]);
 
-                const askBot = (qa) => {
-                    chatHistory.value.push({ role: 'user', text: qa.q });
+                // 處理點擊標籤：直接把標籤對應的完整問題當成輸入發送
+                const handleKeywordClick = (fullQuestion) => {
+                    executeChatLogic(fullQuestion);
+                };
+
+                // 發送輸入訊息的主函數
+                const sendMessage = () => {
+                    const text = userInput.value.trim();
+                    if (!text) return;
                     
-                    // 自動滾動到底部
+                    executeChatLogic(text);
+                    userInput.value = ''; // 清空輸入框
+                };
+
+                // 執行聊天比對核心邏輯
+                const executeChatLogic = (text) => {
+                    chatHistory.value.push({ role: 'user', text: text });
+                    scrollToBottom();
+
+                    setTimeout(() => {
+                        // 簡單的關鍵字模糊比對
+                        const lowerText = text.toLowerCase();
+                        const matched = presetQA.value.find(item => 
+                            item.keywords.some(kw => lowerText.includes(kw)) || lowerText.includes(item.q.toLowerCase())
+                        );
+
+                        if (matched) {
+                            chatHistory.value.push({ role: 'bot', text: matched.a });
+                        } else {
+                            // 罐頭回覆
+                            chatHistory.value.push({ 
+                                role: 'bot', 
+                                text: '這個問題非常有深度！🤔 FinBot 正在努力進化大腦中。你可以試著輸入「開戶」、「定期定額」、「大跌」或「虛擬貨幣」來獲得精確解答喔！' 
+                            });
+                        }
+                        scrollToBottom();
+                    }, 400);
+                };
+
+                const scrollToBottom = () => {
                     nextTick(() => {
                         if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight;
                     });
-
-                    setTimeout(() => {
-                        chatHistory.value.push({ role: 'bot', text: qa.a });
-                        nextTick(() => {
-                            if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight;
-                        });
-                    }, 300);
                 };
 
                 return {
                     categories, currentCategory, currentLevel, filteredCourses,
                     activeQuiz, startQuiz, closeQuiz, userAnswers, isOptionSelected, submitQuiz, quizScore,
-                    chatHistory, presetQA, askBot, chatBox, handleCategoryChange, handleLevelChange
+                    chatHistory, presetQA, chatBox, handleCategoryChange, handleLevelChange,
+                    userInput, sendMessage, handleKeywordClick
                 };
             }
         }).mount('#app');
